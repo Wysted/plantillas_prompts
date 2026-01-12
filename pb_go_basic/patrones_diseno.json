@@ -1,0 +1,415 @@
+{
+  "patrones_aplicados": {
+    "creacionales": {
+      "constructor_pattern": {
+        "nombre": "Constructor / Factory Function Pattern",
+        "definicion": "Funciones que construyen e inicializan objetos con sus dependencias",
+        "proposito": "Encapsular la logica de creacion de objetos complejos",
+        "implementacion": {
+          "ejemplos": [
+            {
+              "ubicacion": "internal/domain/*/repository.go",
+              "codigo": "func NewRepository(db *bob.DB) Repository { return &repository{db: db} }",
+              "explicacion": "Constructor que recibe dependencias y retorna la interfaz"
+            },
+            {
+              "ubicacion": "internal/domain/*/service.go",
+              "codigo": "func NewService(repo Repository) Service { return &service{repo: repo} }",
+              "explicacion": "Constructor que inyecta el repositorio como dependencia"
+            },
+            {
+              "ubicacion": "internal/http/handler/*.go",
+              "codigo": "func NewUserHandler(service user.Service) *UserHandler { return &UserHandler{service: service} }",
+              "explicacion": "Constructor que inyecta el servicio"
+            },
+            {
+              "ubicacion": "internal/domain/transaction/repository.go",
+              "codigo": "func NewFindOptions() *FindOptions { return &FindOptions{} }",
+              "explicacion": "Constructor simple sin parametros que retorna objeto vacio"
+            }
+          ]
+        },
+        "ventajas": [
+          "Centraliza la creacion de objetos",
+          "Facilita Dependency Injection",
+          "Permite validaciones en la construccion",
+          "Oculta detalles de implementacion (retorna interfaz)"
+        ]
+      },
+      "factory_method": {
+        "nombre": "Factory Method Pattern",
+        "definicion": "Metodos que crean instancias de objetos relacionados",
+        "ubicacion": "pkg/db/factory/",
+        "ejemplo": "Factory para crear diferentes tipos de modelos de BD",
+        "notas": "Usado para generar objetos de base de datos"
+      }
+    },
+    "estructurales": {
+      "repository_pattern": {
+        "nombre": "Repository Pattern",
+        "definicion": "Abstraccion que encapsula la logica de acceso a datos",
+        "componentes": {
+          "interfaz": {
+            "descripcion": "Contrato que define operaciones CRUD",
+            "ubicacion": "internal/domain/*/repository.go",
+            "metodos_comunes": ["InsertOne", "InsertMany", "GetByID", "GetAll", "Update", "Delete", "Exists", "Count"]
+          },
+          "implementacion": {
+            "descripcion": "Struct privado que implementa la interfaz",
+            "tecnologia": "Bob ORM + PostgreSQL",
+            "patron_interno": "Usa Criteria Pattern para queries dinamicas"
+          }
+        },
+        "ventajas": [
+          "Abstrae la tecnologia de persistencia",
+          "Facilita testing con mocks",
+          "Centraliza queries SQL"
+        ]
+      },
+      "adapter_pattern": {
+        "nombre": "Adapter Pattern",
+        "definicion": "Convierte una interfaz en otra que el cliente espera",
+        "implementaciones": [
+          {
+            "tipo": "HTTP Adapter",
+            "ubicacion": "internal/http/handler/",
+            "proposito": "Adapta HTTP requests/responses a llamadas de servicio",
+            "flujo": "HTTP Request -> Handler -> Service"
+          },
+          {
+            "tipo": "Database Adapter",
+            "ubicacion": "pkg/db/",
+            "proposito": "Adapta Bob ORM a la interfaz Repository",
+            "flujo": "Repository Interface -> Bob ORM -> PostgreSQL"
+          },
+          {
+            "tipo": "External Service Adapter",
+            "ubicacion": "pkg/waha/client.go",
+            "proposito": "Adapta API externa de WhatsApp",
+            "flujo": "Service -> WAHA Client -> WhatsApp API"
+          }
+        ]
+      },
+      "dto_pattern": {
+        "nombre": "Data Transfer Object (DTO) Pattern",
+        "definicion": "Objetos simples para transferir datos entre capas",
+        "ubicacion": "internal/domain/*/dto.go",
+        "tipos": {
+          "input_dto": {
+            "descripcion": "DTOs que reciben datos del cliente",
+            "ejemplos": ["UserDTO", "UpdateUserDTO", "TransactionDTO"],
+            "tags": "json tags para deserializacion",
+            "validacion": "Validacion en service layer"
+          },
+          "output_dto": {
+            "descripcion": "DTOs que retornan datos al cliente",
+            "ubicacion": "internal/http/handler/responses.go (implicito)",
+            "caracteristicas": "Pueden omitir campos sensibles"
+          }
+        },
+        "metodos_transformacion": [
+          {
+            "metodo": "ToModel()",
+            "proposito": "Convierte DTO a entidad del dominio",
+            "ejemplo": "func (dto *UserDTO) ToModel() User"
+          },
+          {
+            "metodo": "ToUpdateData()",
+            "proposito": "Convierte DTO a objeto de actualizacion",
+            "ejemplo": "func (dto *UpdateUserDTO) ToUpdateData() UpdateData"
+          }
+        ],
+        "ventajas": [
+          "Desacopla representacion HTTP de entidades de dominio",
+          "Permite diferentes vistas de la misma entidad",
+          "Facilita versionado de API"
+        ]
+      }
+    },
+    "comportamiento": {
+      "strategy_pattern": {
+        "nombre": "Strategy Pattern",
+        "definicion": "Define familia de algoritmos intercambiables",
+        "implementacion": {
+          "ubicacion": "Interfaces Service y Repository",
+          "explicacion": "Las interfaces permiten intercambiar implementaciones",
+          "ejemplo": "Se puede cambiar UserRepository por MockUserRepository en tests"
+        }
+      },
+      "specification_criteria_pattern": {
+        "nombre": "Specification / Criteria Pattern",
+        "definicion": "Encapsula condiciones de busqueda reutilizables",
+        "implementacion": {
+          "ubicacion": "internal/domain/*/repository.go",
+          "estructura": {
+            "criteria_struct": {
+              "descripcion": "Define todos los filtros posibles para queries",
+              "campos": "Punteros opcionales para cada campo filtrable",
+              "ejemplo_user": {
+                "campos": ["ID", "Email", "Phone", "IsActive"],
+                "tipo": "struct con punteros para campos opcionales"
+              },
+              "ejemplo_transaction": {
+                "campos": ["ID", "OperationNumber", "BankAccountId", "Notified", "Description", "DateFrom", "DateTo", "OnlyCharge", "OnlyPayment"],
+                "tipo": "struct con punteros y slices para filtros complejos"
+              }
+            },
+            "metodos_conversion": [
+              {
+                "metodo": "criteriaToWhere(*Criteria)",
+                "proposito": "Convierte Criteria a clausulas WHERE para SELECT",
+                "retorno": "[]bob.Mod[*dialect.SelectQuery]"
+              },
+              {
+                "metodo": "criteriaToWhereU(*Criteria)",
+                "proposito": "Convierte Criteria a clausulas WHERE para UPDATE",
+                "retorno": "[]bob.Mod[*dialect.UpdateQuery]"
+              },
+              {
+                "metodo": "criteriaToWhereD(*Criteria)",
+                "proposito": "Convierte Criteria a clausulas WHERE para DELETE",
+                "retorno": "[]bob.Mod[*dialect.DeleteQuery]"
+              }
+            ]
+          },
+          "ejemplo_uso": {
+            "codigo": "repo.GetUser(&Criteria{Email: \"user@example.com\"})",
+            "explicacion": "Buscar usuario por email usando criterios dinamicos"
+          }
+        },
+        "ventajas": [
+          "Queries dinamicas sin SQL manual",
+          "Reutilizacion de logica de filtrado",
+          "Type-safe (errores en compilacion)",
+          "Facil agregar nuevos filtros"
+        ]
+      },
+      "builder_pattern": {
+        "nombre": "Builder Pattern (Fluent Interface)",
+        "definicion": "Construye objetos complejos paso a paso con sintaxis fluida",
+        "implementacion": {
+          "ubicacion": "internal/domain/transaction/repository.go",
+          "clase": "FindOptions",
+          "metodos_encadenables": [
+            {
+              "metodo": "Limit(limit int64) *FindOptions",
+              "proposito": "Define limite de resultados"
+            },
+            {
+              "metodo": "Skip(skip int64) *FindOptions",
+              "proposito": "Define offset para paginacion"
+            },
+            {
+              "metodo": "Sort(sort Sort) *FindOptions",
+              "proposito": "Define ordenamiento"
+            }
+          ],
+          "ejemplo_uso": {
+            "codigo": "opts := NewFindOptions().Limit(10).Skip(20).Sort(Sort{Date: DESC})",
+            "explicacion": "Construye opciones de busqueda de forma fluida y legible"
+          }
+        },
+        "componentes_relacionados": {
+          "sort_struct": {
+            "descripcion": "Define campos y direccion de ordenamiento",
+            "campos": ["ID", "Date", "CreatedAt", "Charge", "Payment", "Balance"],
+            "valores": ["ASC", "DESC"],
+            "tipo_enum": "OrderMod (string constantes)"
+          }
+        },
+        "ventajas": [
+          "API legible y expresiva",
+          "Construccion flexible de queries",
+          "Evita constructores con muchos parametros",
+          "Metodos encadenables (chainable)"
+        ]
+      },
+      "template_method_pattern": {
+        "nombre": "Template Method Pattern",
+        "definicion": "Define estructura de algoritmo, delegando pasos especificos",
+        "implementacion": {
+          "ubicacion": "internal/domain/*/service.go",
+          "ejemplo": "Metodos de validacion reutilizables",
+          "codigo_ejemplo": {
+            "metodo_template": "Register(dto UserDTO)",
+            "pasos": [
+              "1. validateEmail()",
+              "2. validatePhone()",
+              "3. repo.Exists() - verificar duplicados",
+              "4. repo.InsertOne()"
+            ]
+          }
+        }
+      },
+      "chain_of_responsibility": {
+        "nombre": "Chain of Responsibility Pattern",
+        "definicion": "Cadena de handlers que procesan una peticion",
+        "implementacion": {
+          "ubicacion": "internal/http/middleware/",
+          "middlewares": [
+            "JWTMiddleware() - Valida token JWT",
+            "APIKeyMiddleware() - Valida API Key",
+            "Recovery() - Manejo de panics",
+            "Logging - Logs de requests (implicito en Gin)"
+          ],
+          "ejemplo_cadena": "Request -> Recovery -> JWTMiddleware -> Handler"
+        }
+      }
+    },
+    "arquitecturales": {
+      "dependency_injection": {
+        "nombre": "Dependency Injection Pattern",
+        "definicion": "Inyectar dependencias en lugar de crearlas internamente",
+        "tipo": "Constructor Injection",
+        "implementacion": {
+          "ubicacion": "internal/http/router.go",
+          "flujo_completo": [
+            "1. db := NewPostgres(cfg.DatabaseURL) - Crear conexion BD",
+            "2. userRepo := user.NewRepository(db) - Inyectar DB en repo",
+            "3. userService := user.NewService(userRepo) - Inyectar repo en service",
+            "4. userHandler := handler.NewUserHandler(userService) - Inyectar service en handler",
+            "5. router.GET(\"/users\", userHandler.GetAllUsers) - Registrar handler"
+          ],
+          "ejemplo_codigo": {
+            "ubicacion": "router.go:29-42",
+            "patron": "Todas las dependencias se crean y conectan en un solo lugar"
+          }
+        },
+        "ventajas": [
+          "Bajo acoplamiento entre componentes",
+          "Facilita testing (inyectar mocks)",
+          "Inversion de control (IoC)",
+          "Configuracion centralizada"
+        ]
+      },
+      "service_layer": {
+        "nombre": "Service Layer Pattern",
+        "definicion": "Capa que encapsula logica de negocio",
+        "referencia": "Ver arquitectura_proyecto.json - patron_service_layer"
+      },
+      "layered_architecture": {
+        "nombre": "Layered Architecture / Clean Architecture",
+        "definicion": "Organizacion en capas con dependencias unidireccionales",
+        "referencia": "Ver arquitectura_proyecto.json - capas_clean_architecture"
+      }
+    },
+    "persistencia": {
+      "unit_of_work": {
+        "nombre": "Unit of Work Pattern",
+        "definicion": "Mantiene lista de objetos afectados y coordina cambios",
+        "implementacion": {
+          "ubicacion": "internal/domain/transaction/repository.go - InsertMany()",
+          "codigo": "Usa db.BeginTx() para transacciones",
+          "componentes": [
+            "1. BeginTx() - Inicia transaccion",
+            "2. Loop inserciones dentro de tx",
+            "3. tx.Commit() o tx.Rollback()"
+          ],
+          "ejemplo": "InsertMany inserta multiples transacciones atomicamente"
+        },
+        "ventajas": [
+          "Atomicidad (todo o nada)",
+          "Consistencia de datos",
+          "Rollback automatico en errores"
+        ]
+      },
+      "query_object": {
+        "nombre": "Query Object Pattern",
+        "definicion": "Objetos que representan queries de base de datos",
+        "implementacion": "Combinacion de Criteria + FindOptions + Sort",
+        "componentes": [
+          "Criteria - Filtros WHERE",
+          "FindOptions - Limit, Skip, Sort",
+          "Sort - ORDER BY"
+        ],
+        "ventajas": "Queries complejas de forma type-safe sin SQL raw"
+      }
+    },
+    "otros": {
+      "mapper_pattern": {
+        "nombre": "Mapper Pattern",
+        "definicion": "Convierte entre objetos de diferentes capas",
+        "implementaciones": [
+          {
+            "tipo": "SQL to Domain",
+            "ubicacion": "repository.go - sqlToModel()",
+            "proposito": "Convierte models.User (Bob ORM) a User (dominio)",
+            "ejemplo": "func (r *repository) SqlToModel(model *models.User) *User"
+          },
+          {
+            "tipo": "DTO to Domain",
+            "ubicacion": "dto.go - ToModel()",
+            "proposito": "Convierte UserDTO a User",
+            "ejemplo": "func (dto *UserDTO) ToModel() User"
+          },
+          {
+            "tipo": "DTO to UpdateData",
+            "ubicacion": "dto.go - ToUpdateData()",
+            "proposito": "Convierte UpdateUserDTO a UpdateData para repository",
+            "ejemplo": "func (dto *UpdateUserDTO) ToUpdateData() UpdateData"
+          }
+        ],
+        "ventajas": [
+          "Desacopla capas de datos",
+          "Centraliza transformaciones",
+          "Facilita cambios en estructuras"
+        ]
+      },
+      "null_object_pattern": {
+        "nombre": "Null Object Pattern (parcial)",
+        "definicion": "Usa punteros opcionales para campos nullable",
+        "implementacion": {
+          "ubicacion": "Criteria structs y UpdateData structs",
+          "ejemplo": "Email *string (nil = no filtrar por email)",
+          "ventaja": "Distingue entre 'no provisto' y 'valor vacio'"
+        }
+      },
+      "error_handling_pattern": {
+        "nombre": "Custom Error Pattern",
+        "definicion": "Errores especificos del dominio",
+        "ubicacion": "internal/domain/*/errors.go",
+        "ejemplos": [
+          "ErrUserNotFound",
+          "ErrUserAlreadyExists",
+          "ErrInvalidEmail",
+          "ErrPhoneRequired"
+        ],
+        "ventaja": "Errores semanticos en lugar de strings genericos"
+      }
+    }
+  },
+  "resumen_por_capa": {
+    "presentacion": [
+      "Adapter Pattern (HTTP -> Service)",
+      "Chain of Responsibility (Middlewares)",
+      "DTO Pattern (Request/Response)"
+    ],
+    "aplicacion": [
+      "Service Layer Pattern",
+      "Template Method (Validaciones)",
+      "Strategy Pattern (Interfaces)"
+    ],
+    "dominio": [
+      "DTO Pattern",
+      "Mapper Pattern",
+      "Custom Error Pattern"
+    ],
+    "persistencia": [
+      "Repository Pattern",
+      "Criteria Pattern",
+      "Builder Pattern (FindOptions)",
+      "Query Object Pattern",
+      "Unit of Work Pattern"
+    ],
+    "infraestructura": [
+      "Factory Pattern",
+      "Adapter Pattern (External APIs)",
+      "Constructor Pattern"
+    ],
+    "transversal": [
+      "Dependency Injection",
+      "Constructor Pattern",
+      "Layered Architecture"
+    ]
+  }
+}
