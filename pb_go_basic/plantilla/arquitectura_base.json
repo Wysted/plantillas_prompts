@@ -1,0 +1,652 @@
+{
+  "nombre": "Clean Architecture / Layered Architecture - Multi-Lenguaje",
+  "descripcion": "Arquitectura base adaptable para aplicaciones Backend, Frontend, Mobile, CLI y Desktop",
+  "version": "2.0",
+  "tipo": "Plantilla Universal",
+  "ecosistemas_soportados": [
+    "Backend (Go, Python, TypeScript, Java, C#, Ruby, PHP)",
+    "Frontend (React, Vue, Angular, Svelte)",
+    "Mobile (Flutter, React Native, Swift, Kotlin)",
+    "CLI (Go, Python, Node)",
+    "Desktop (Electron, Tauri, Qt)"
+  ],
+
+  "principios_fundamentales": {
+    "solid": {
+      "single_responsibility": "Cada capa/módulo/clase/componente tiene una única responsabilidad",
+      "open_closed": "Abierto para extensión, cerrado para modificación (uso de abstracciones)",
+      "liskov_substitution": "Las implementaciones pueden ser sustituidas (ej: repositorios, services)",
+      "interface_segregation": "Contratos pequeños y específicos",
+      "dependency_inversion": "Dependencias apuntan hacia abstracciones (interfaces/abstract classes/protocols)"
+    },
+    "clean_architecture": {
+      "independencia_frameworks": "La lógica de negocio no depende de frameworks externos",
+      "testeable": "Reglas de negocio pueden testearse sin UI, BD, servidor",
+      "independencia_ui": "La UI puede cambiar sin afectar el negocio",
+      "independencia_bd": "Puedes cambiar de PostgreSQL a MongoDB sin tocar el negocio",
+      "independencia_externos": "Las reglas de negocio no saben de servicios externos"
+    },
+    "separation_of_concerns": {
+      "presentacion": "Lógica de UI/presentación separada",
+      "negocio": "Lógica de negocio independiente",
+      "datos": "Acceso a datos abstraído",
+      "infraestructura": "Detalles técnicos aislados"
+    }
+  },
+
+  "estructura_directorios": {
+    "backend": {
+      "descripcion": "Estructura para aplicaciones backend (APIs, Microservicios)",
+      "aplicable_a": ["Go", "Python", "TypeScript/Node", "Java", "C#"],
+      "estructura": {
+        "cmd/ o src/": {
+          "proposito": "Puntos de entrada de la aplicación",
+          "archivos": ["main.{go|py|ts|java|cs}", "app.{go|py|ts}"],
+          "responsabilidad": "Orquestar la inicialización: config, DB, router, server",
+          "capa": "Infraestructura"
+        },
+        "internal/ o app/ o src/": {
+          "proposito": "Código privado de la aplicación",
+          "subdirectorios": {
+            "config/": {
+              "proposito": "Gestión de configuración",
+              "responsabilidad": "Cargar variables de entorno, configuración general",
+              "capa": "Infraestructura"
+            },
+            "domain/ o models/": {
+              "proposito": "Núcleo de la aplicación - Lógica de negocio",
+              "estructura_por_entidad": {
+                "model.{ext} o entity.{ext}": {
+                  "proposito": "Entidades del dominio",
+                  "contiene": "Clases/structs que representan conceptos del negocio",
+                  "ejemplos": {
+                    "go": "type User struct { ID int64; Email string }",
+                    "python": "class User: id: int; email: str",
+                    "typescript": "export class User { id: string; email: string }",
+                    "java": "public class User { private Long id; private String email; }",
+                    "csharp": "public class User { public long Id { get; set; } }"
+                  }
+                },
+                "dto.{ext} o schemas.{ext}": {
+                  "proposito": "Data Transfer Objects",
+                  "contiene": "Objetos para transferir datos entre capas",
+                  "metodos": ["ToModel()", "ToEntity()", "to_model()", "toEntity()"],
+                  "ejemplos": {
+                    "go": "type UserDTO struct { Email string `json:\"email\"` }",
+                    "python": "@dataclass\nclass UserDTO: email: str",
+                    "typescript": "export interface UserDTO { email: string }",
+                    "java": "public record UserDTO(String email) {}",
+                    "csharp": "public record UserDTO(string Email);"
+                  }
+                },
+                "repository.{ext} o repo.{ext}": {
+                  "proposito": "Abstracción de persistencia",
+                  "contiene": {
+                    "interface_o_abstract_class": "Define operaciones CRUD",
+                    "criteria_o_filter": "Filtros de búsqueda",
+                    "implementacion": "Implementación concreta (puede ser privada)"
+                  },
+                  "patron": "Repository Pattern + Criteria/Filter Pattern",
+                  "ejemplos": {
+                    "go": "type Repository interface { Create(user User) (*User, error) }",
+                    "python": "class Repository(ABC): @abstractmethod\n    def create(self, user: User) -> User: ...",
+                    "typescript": "interface Repository { create(user: User): Promise<User> }",
+                    "java": "public interface Repository { User create(User user); }",
+                    "csharp": "public interface IRepository { User Create(User user); }"
+                  }
+                },
+                "service.{ext} o use_cases.{ext}": {
+                  "proposito": "Lógica de negocio y casos de uso",
+                  "contiene": {
+                    "interface_o_abstract": "Define casos de uso",
+                    "implementacion": "Implementación con validaciones y lógica",
+                    "dependencias": "Inyección de repositorios/otros services"
+                  },
+                  "patron": "Service Layer Pattern / Use Case Pattern",
+                  "ejemplos": {
+                    "go": "type Service interface { Create(dto UserDTO) (*User, error) }",
+                    "python": "class UserService: def create(self, dto: UserDTO) -> User: ...",
+                    "typescript": "class UserService { create(dto: UserDTO): Promise<User> }",
+                    "java": "public interface UserService { User create(UserDTO dto); }"
+                  }
+                }
+              },
+              "capa": "Dominio + Aplicación"
+            },
+            "delivery/ o http/ o api/ o controllers/": {
+              "proposito": "Capa de Presentación - Adaptador de entrada",
+              "subdirectorios": {
+                "handlers/ o controllers/ o views/": {
+                  "proposito": "Controladores HTTP/gRPC/GraphQL",
+                  "responsabilidad": "Recibir requests, llamar services, retornar responses",
+                  "patron": "Adapter Pattern / Controller Pattern",
+                  "ejemplos": {
+                    "go": "func (h *UserHandler) Create(c *gin.Context)",
+                    "python": "class UserViewSet(viewsets.ModelViewSet): ...",
+                    "typescript": "@Controller('users')\nexport class UserController { @Post() create() }",
+                    "java": "@RestController\npublic class UserController { @PostMapping... }"
+                  }
+                },
+                "middleware/ o decorators/": {
+                  "proposito": "Middlewares/Interceptors",
+                  "responsabilidad": "Autenticación, autorización, logging, CORS",
+                  "patron": "Chain of Responsibility / Decorator",
+                  "ejemplos": ["auth", "rate_limiting", "logging", "cors"]
+                },
+                "router.{ext} o routes.{ext}": {
+                  "proposito": "Configuración de rutas y Dependency Injection",
+                  "responsabilidad": [
+                    "Crear instancias (repos, services, handlers)",
+                    "Inyectar dependencias",
+                    "Registrar rutas/endpoints"
+                  ],
+                  "patron": "Dependency Injection + Factory"
+                }
+              },
+              "capa": "Presentación"
+            }
+          }
+        },
+        "pkg/ o lib/ o common/": {
+          "proposito": "Paquetes reutilizables",
+          "subdirectorios": {
+            "database/ o db/": "Adaptador de base de datos",
+            "logger/": "Sistema de logging",
+            "jwt/ o auth/": "Manejo de autenticación",
+            "cache/": "Adaptador de cache (Redis, etc.)",
+            "http_client/": "Cliente HTTP para APIs externas"
+          },
+          "capa": "Infraestructura"
+        },
+        "utils/ o helpers/": {
+          "proposito": "Utilidades generales",
+          "ejemplos": ["validators", "formatters", "helpers"],
+          "capa": "Infraestructura"
+        }
+      }
+    },
+    "frontend": {
+      "descripcion": "Estructura para aplicaciones frontend (React, Vue, Angular)",
+      "aplicable_a": ["React", "Vue", "Angular", "Svelte"],
+      "estructura": {
+        "src/": {
+          "features/ o modules/": {
+            "proposito": "Organización por feature/módulo",
+            "estructura_por_feature": {
+              "components/": "Componentes UI específicos del feature",
+              "hooks/ o composables/ o services/": "Lógica reutilizable (React hooks, Vue composables, Angular services)",
+              "store/ o state/": "Estado local del feature",
+              "types/ o models/": "TypeScript types o interfaces",
+              "api/ o services/": "Llamadas a API específicas"
+            },
+            "patron": "Feature-based Architecture"
+          },
+          "shared/ o common/": {
+            "components/": "Componentes reutilizables",
+            "hooks/ o composables/": "Lógica compartida",
+            "services/": "API clients, servicios globales",
+            "utils/": "Helpers, formatters",
+            "types/": "Tipos compartidos"
+          },
+          "store/ o state/": {
+            "proposito": "Estado global de la aplicación",
+            "opciones": {
+              "react": "Redux Toolkit, Zustand, Jotai, Context API",
+              "vue": "Pinia, Vuex",
+              "angular": "NgRx, Akita",
+              "svelte": "Svelte Store"
+            }
+          },
+          "api/ o services/": {
+            "proposito": "Clientes API, llamadas HTTP",
+            "patron": "Repository Pattern (opcional en frontend)"
+          }
+        }
+      }
+    },
+    "mobile": {
+      "descripcion": "Estructura para aplicaciones móviles (Flutter, React Native)",
+      "aplicable_a": ["Flutter", "React Native", "Swift", "Kotlin"],
+      "estructura_flutter": {
+        "lib/": {
+          "features/": {
+            "proposito": "Features organizados por Clean Architecture",
+            "estructura": {
+              "presentation/": {
+                "screens/": "Pantallas principales",
+                "widgets/": "Widgets reutilizables",
+                "bloc/ o viewmodel/": "BLoC o ViewModel (lógica de UI)"
+              },
+              "domain/": {
+                "entities/": "Entidades del dominio",
+                "usecases/": "Casos de uso"
+              },
+              "data/": {
+                "repositories/": "Implementaciones de repositorios",
+                "datasources/": "Fuentes de datos (API, local DB)"
+              }
+            },
+            "patron": "Clean Architecture adaptado a móvil"
+          },
+          "core/": {
+            "theme/": "Tema de la aplicación",
+            "utils/": "Utilidades",
+            "network/": "Cliente HTTP"
+          }
+        }
+      },
+      "estructura_react_native": {
+        "src/": {
+          "screens/": "Pantallas",
+          "components/": "Componentes reutilizables",
+          "viewmodels/ o hooks/": "Lógica de UI",
+          "services/": "Lógica de negocio",
+          "navigation/": "Navegación",
+          "store/": "Estado global (Redux, MobX)"
+        }
+      }
+    },
+    "cli": {
+      "descripcion": "Estructura para aplicaciones CLI",
+      "aplicable_a": ["Go", "Python", "Node/TypeScript"],
+      "estructura": {
+        "cmd/": "Comandos CLI",
+        "internal/": {
+          "commands/": "Definiciones de comandos",
+          "handlers/": "Lógica de cada comando",
+          "services/": "Lógica de negocio",
+          "utils/": "Formatters, helpers"
+        }
+      }
+    }
+  },
+
+  "capas_arquitectura": {
+    "orden_dependencias": "Presentación → Aplicación → Dominio ← Persistencia ← Infraestructura",
+    "regla_oro": "Las capas internas NO conocen las externas (Dependency Inversion)",
+
+    "capa_1_presentacion": {
+      "nombre": "Presentación / Delivery / UI Layer",
+      "variaciones_por_tipo": {
+        "backend": "Handlers, Controllers, Routes (HTTP/gRPC/GraphQL)",
+        "frontend": "Components, Screens, Pages",
+        "mobile": "Screens, Widgets, ViewControllers"
+      },
+      "responsabilidad": "Adaptar protocolos externos al dominio",
+      "que_hace": [
+        "Recibir inputs (HTTP requests, user interactions, CLI args)",
+        "Validar formato básico",
+        "Transformar input a DTOs",
+        "Llamar al service/use case correspondiente",
+        "Transformar respuesta a formato de salida (JSON, UI update)"
+      ],
+      "que_NO_hace": [
+        "Validar reglas de negocio",
+        "Acceder directamente a la BD",
+        "Contener lógica de negocio compleja"
+      ]
+    },
+
+    "capa_2_aplicacion": {
+      "nombre": "Aplicación / Use Cases / Business Logic Layer",
+      "variaciones_por_tipo": {
+        "backend": "Service Layer (Services, Use Cases)",
+        "frontend": "Services, Hooks, Composables, Application Services",
+        "mobile": "Use Cases, Interactors, ViewModels/Presenters"
+      },
+      "responsabilidad": "Orquestar la lógica de negocio y casos de uso",
+      "que_hace": [
+        "Validar datos (formato, reglas de negocio)",
+        "Aplicar reglas de negocio",
+        "Orquestar llamadas a repositorios",
+        "Coordinar transacciones",
+        "Manejar errores del dominio"
+      ],
+      "que_NO_hace": [
+        "Conocer detalles de UI (HTTP, componentes React, etc.)",
+        "Hacer SQL directo",
+        "Conocer qué BD/API se usa"
+      ]
+    },
+
+    "capa_3_dominio": {
+      "nombre": "Dominio / Entities / Models Layer",
+      "variaciones_por_tipo": {
+        "backend": "Models, Entities, Domain Objects",
+        "frontend": "Models, Domain Objects, Business Entities",
+        "mobile": "Entities, Models, Domain Objects"
+      },
+      "responsabilidad": "Representar conceptos del negocio",
+      "que_contiene": [
+        "Estructuras de datos del dominio (entidades, value objects)",
+        "DTOs para transferencia de datos",
+        "Errores específicos del dominio",
+        "Métodos de transformación",
+        "Reglas de negocio inherentes a las entidades"
+      ],
+      "que_NO_contiene": [
+        "Lógica de persistencia",
+        "Lógica de presentación",
+        "Detalles de frameworks",
+        "Dependencias externas"
+      ]
+    },
+
+    "capa_4_persistencia": {
+      "nombre": "Persistencia / Data Access / Repository Layer",
+      "variaciones_por_tipo": {
+        "backend": "Repository Pattern (abstracción de BD)",
+        "frontend": "API Clients, Repository Pattern (opcional)",
+        "mobile": "Repositories (API + Local DB)"
+      },
+      "responsabilidad": "Abstraer el acceso a datos",
+      "que_hace": [
+        "Definir contratos de persistencia (interfaces/abstract classes)",
+        "Implementar operaciones CRUD",
+        "Construir queries dinámicas (Criteria/Filters)",
+        "Mapear datos externos a dominio",
+        "Manejar transacciones"
+      ],
+      "que_NO_hace": [
+        "Validar reglas de negocio",
+        "Conocer detalles de UI",
+        "Exponer detalles de implementación al service"
+      ]
+    },
+
+    "capa_5_infraestructura": {
+      "nombre": "Infraestructura / External Services",
+      "responsabilidad": "Implementar detalles técnicos y acceso a servicios externos",
+      "componentes": [
+        "DB connections",
+        "Loggers",
+        "Authentication (JWT, OAuth)",
+        "External APIs clients",
+        "Cache (Redis, Memcached)",
+        "File storage",
+        "Email services",
+        "Utils"
+      ]
+    }
+  },
+
+  "patrones_aplicados": {
+    "repository_pattern": {
+      "proposito": "Abstraer acceso a datos",
+      "aplicable_a": ["Backend (todos los lenguajes)", "Mobile (Flutter, RN)"],
+      "implementacion": {
+        "go": "Interface + struct privado + constructor NewRepository()",
+        "python": "Abstract class + implementación concreta",
+        "typescript": "Interface + clase implementadora",
+        "java": "Interface + @Repository class",
+        "csharp": "IRepository interface + implementación"
+      },
+      "ventaja": "Cambiar BD/API sin afectar services"
+    },
+    "service_layer_pattern": {
+      "proposito": "Encapsular lógica de negocio",
+      "aplicable_a": ["Backend", "Frontend (opcional)", "Mobile"],
+      "implementacion": {
+        "go": "Interface + struct privado + constructor NewService()",
+        "python": "Clase con métodos de negocio",
+        "typescript": "@Injectable() class Service (NestJS) o clase normal",
+        "java": "@Service class",
+        "csharp": "Service class con interface"
+      },
+      "ventaja": "Testeable, reutilizable, independiente de UI/HTTP"
+    },
+    "criteria_filter_pattern": {
+      "proposito": "Queries dinámicas con filtros opcionales",
+      "aplicable_a": ["Backend", "Mobile"],
+      "implementacion": {
+        "go": "Struct con punteros para campos opcionales",
+        "python": "Dataclass o TypedDict con Optional fields",
+        "typescript": "Interface con campos opcionales (?)",
+        "java": "Builder pattern para construir criterios",
+        "csharp": "Class con propiedades nullable"
+      },
+      "ventaja": "Un solo método para múltiples búsquedas"
+    },
+    "dto_pattern": {
+      "proposito": "Desacoplar representación externa de dominio",
+      "aplicable_a": ["Backend", "Frontend", "Mobile"],
+      "implementacion": {
+        "go": "Structs con json tags + ToModel()",
+        "python": "@dataclass con to_model()",
+        "typescript": "Interface/Class con transformadores",
+        "java": "Record o class con mapper",
+        "csharp": "Record con métodos de mapeo"
+      },
+      "ventaja": "Versionado de API, campos opcionales, validación"
+    },
+    "dependency_injection": {
+      "proposito": "Desacoplar creación de objetos",
+      "aplicable_a": ["Backend", "Frontend", "Mobile"],
+      "implementacion": {
+        "go": "Manual en router.go",
+        "python": "Manual o frameworks como injector",
+        "typescript": "NestJS (automático), Angular (automático), React (Context/DI libs)",
+        "java": "Spring Framework (@Autowired)",
+        "csharp": "ASP.NET Core (built-in DI)"
+      },
+      "ventaja": "Testing con mocks, bajo acoplamiento"
+    },
+    "adapter_pattern": {
+      "proposito": "Adaptar interfaces externas a internas",
+      "aplicable_a": ["Backend (handlers)", "Frontend (API clients)", "Mobile (repositories)"],
+      "implementacion": "Capas que transforman datos entre protocolos",
+      "ventaja": "Cambiar frameworks/APIs sin tocar dominio"
+    },
+    "mvvm_pattern": {
+      "proposito": "Separar UI de lógica (Mobile/Frontend)",
+      "aplicable_a": ["Flutter", "React Native", "Swift", "Kotlin", "Frontend frameworks"],
+      "componentes": {
+        "view": "UI (Widgets, Components)",
+        "viewmodel": "Lógica de UI, estado",
+        "model": "Datos y lógica de negocio"
+      }
+    },
+    "bloc_pattern": {
+      "proposito": "Gestión de estado reactivo (Flutter)",
+      "aplicable_a": ["Flutter"],
+      "componentes": {
+        "event": "Eventos de usuario",
+        "bloc": "Lógica de negocio",
+        "state": "Estados de la UI"
+      }
+    },
+    "hooks_pattern": {
+      "proposito": "Reutilizar lógica con estado (React/Vue)",
+      "aplicable_a": ["React", "Vue"],
+      "ejemplos": ["useEntity", "useState", "useEffect", "custom hooks"]
+    }
+  },
+
+  "naming_conventions_por_lenguaje": {
+    "go": {
+      "interfaces": "type Repository interface",
+      "structs": "type User struct (públicos), type service struct (privados)",
+      "funciones": "camelCase (privadas), PascalCase (públicas)",
+      "constructores": "NewRepository(), NewService()"
+    },
+    "python": {
+      "clases": "PascalCase (class User, class UserService)",
+      "funciones_metodos": "snake_case",
+      "variables": "snake_case",
+      "constantes": "UPPER_SNAKE_CASE"
+    },
+    "typescript": {
+      "clases_interfaces": "PascalCase (class User, interface IRepository)",
+      "funciones_metodos": "camelCase",
+      "variables": "camelCase",
+      "constantes": "UPPER_SNAKE_CASE o camelCase"
+    },
+    "java": {
+      "clases_interfaces": "PascalCase",
+      "metodos_variables": "camelCase",
+      "constantes": "UPPER_SNAKE_CASE",
+      "packages": "lowercase.separated.by.dots"
+    },
+    "csharp": {
+      "clases_interfaces": "PascalCase (IRepository)",
+      "metodos_propiedades": "PascalCase",
+      "variables_locales": "camelCase",
+      "privados": "_camelCase con underscore"
+    },
+    "dart_flutter": {
+      "clases": "PascalCase",
+      "funciones_variables": "camelCase",
+      "archivos": "snake_case"
+    }
+  },
+
+  "reglas_implementacion_universales": {
+    "dependency_flow": {
+      "correcto": "UI/Handler → Service/UseCase → Repository → External Data Source",
+      "incorrecto_1": "UI → Repository (saltarse service layer)",
+      "incorrecto_2": "Service → SQL directo (saltarse repository)"
+    },
+    "error_handling": {
+      "dominio": "Definir errores custom del dominio",
+      "service": "Retornar errores del dominio o lanzar excepciones tipadas",
+      "presentacion": "Transformar errores a formato apropiado (HTTP status, UI messages)",
+      "repository": "Propagar errores hacia arriba"
+    },
+    "testing": {
+      "unit_tests_service": "Usar mocks del Repository",
+      "unit_tests_presentacion": "Usar mocks del Service",
+      "integration_tests_repo": "Usar BD de test real o mocks de API",
+      "e2e_tests": "Frontend/Mobile: tests end-to-end de flujos completos"
+    }
+  },
+
+  "tecnologias_por_ecosistema": {
+    "backend_go": {
+      "http_framework": ["gin", "fiber", "echo", "chi"],
+      "orm": ["GORM", "sqlx", "ent", "bob"],
+      "validacion": ["validator", "ozzo-validation"],
+      "testing": ["testify", "gomock"]
+    },
+    "backend_python": {
+      "framework": ["Django", "FastAPI", "Flask"],
+      "orm": ["Django ORM", "SQLAlchemy", "Tortoise ORM"],
+      "validacion": ["Pydantic", "Marshmallow"],
+      "testing": ["pytest", "unittest", "factory_boy"]
+    },
+    "backend_typescript": {
+      "framework": ["NestJS", "Express", "Fastify"],
+      "orm": ["TypeORM", "Prisma", "Sequelize"],
+      "validacion": ["class-validator", "zod", "joi"],
+      "testing": ["Jest", "Vitest"]
+    },
+    "frontend_react": {
+      "state": ["Redux Toolkit", "Zustand", "Jotai", "Context API"],
+      "http": ["Axios", "Fetch", "React Query"],
+      "routing": ["React Router"],
+      "testing": ["Jest", "React Testing Library", "Vitest"]
+    },
+    "frontend_vue": {
+      "state": ["Pinia", "Vuex"],
+      "http": ["Axios", "Fetch"],
+      "routing": ["Vue Router"],
+      "testing": ["Vitest", "Vue Test Utils"]
+    },
+    "frontend_angular": {
+      "state": ["NgRx", "Akita"],
+      "http": ["HttpClient"],
+      "routing": ["Angular Router"],
+      "testing": ["Jasmine", "Karma", "Jest"]
+    },
+    "mobile_flutter": {
+      "state": ["flutter_bloc", "Provider", "Riverpod"],
+      "http": ["dio", "http"],
+      "navigation": ["go_router", "auto_route"],
+      "testing": ["flutter_test", "mockito"]
+    },
+    "mobile_react_native": {
+      "state": ["Redux", "MobX", "Zustand"],
+      "http": ["Axios", "Fetch"],
+      "navigation": ["React Navigation"],
+      "testing": ["Jest", "React Native Testing Library"]
+    }
+  },
+
+  "mejores_practicas_universales": {
+    "do": [
+      "Usar abstracciones (interfaces, abstract classes, protocols) para services y repositorios",
+      "Inyectar dependencias (constructor injection, DI frameworks)",
+      "Validar en service/use case layer, no en UI",
+      "Usar DTOs para desacoplar capas",
+      "Definir errores específicos del dominio",
+      "Mantener UI/Controllers delgados (thin)",
+      "Respetar naming conventions del lenguaje",
+      "Un archivo/módulo = una responsabilidad",
+      "Testear cada capa de forma aislada"
+    ],
+    "dont": [
+      "No mezclar capas (UI no debe hacer SQL directo)",
+      "No saltarse capas (UI → Service → Repository)",
+      "No poner lógica de negocio en UI/Controllers",
+      "No poner lógica de negocio en Repositories",
+      "No usar tipos dinámicos sin necesidad (any, dynamic, object)",
+      "No ignorar errores",
+      "No hacer god classes/objects",
+      "No duplicar código (DRY)",
+      "No violar naming conventions del ecosistema"
+    ]
+  },
+
+  "checklist_implementacion_generico": {
+    "paso_1_setup": [
+      "Inicializar proyecto (go mod init, npm init, etc.)",
+      "Crear estructura de directorios según tipo de proyecto",
+      "Configurar variables de entorno (.env, config files)"
+    ],
+    "paso_2_infraestructura": [
+      "Implementar conexión a BD/API",
+      "Implementar sistema de logging",
+      "Implementar autenticación si aplica (JWT, OAuth)",
+      "Configurar cache si aplica"
+    ],
+    "paso_3_dominio": [
+      "Crear módulo/paquete por entidad",
+      "Definir models/entities",
+      "Definir DTOs con métodos de transformación",
+      "Definir errores del dominio",
+      "Implementar repositories (interface + implementación)",
+      "Implementar services/use cases (interface + implementación)"
+    ],
+    "paso_4_presentacion": [
+      "Backend: Crear handlers/controllers",
+      "Frontend: Crear components/screens",
+      "Mobile: Crear screens/widgets + ViewModels",
+      "Implementar middlewares/guards necesarios",
+      "Configurar routing con DI"
+    ],
+    "paso_5_testing": [
+      "Unit tests de services (con mocks de repos)",
+      "Unit tests de presentación (con mocks de services)",
+      "Integration tests de repositories",
+      "E2E tests de flujos principales"
+    ]
+  },
+
+  "adaptacion_por_paradigma": {
+    "orientado_objetos": {
+      "lenguajes": ["Java", "C#", "TypeScript", "Python", "Swift", "Kotlin"],
+      "usa": "Classes, Interfaces, Abstract Classes, Inheritance, Polymorphism"
+    },
+    "funcional_con_objetos": {
+      "lenguajes": ["Go", "Rust"],
+      "usa": "Structs, Interfaces (Go), Traits (Rust), Functions, Composition over Inheritance"
+    },
+    "funcional_puro": {
+      "lenguajes": ["Haskell", "Elixir", "F#"],
+      "usa": "Functions, Modules, Pattern Matching, Immutability"
+    },
+    "componentes_reactivos": {
+      "frameworks": ["React", "Vue", "Svelte", "Flutter"],
+      "usa": "Components, Hooks/Composables, Reactive State, Props/Events"
+    }
+  }
+}
